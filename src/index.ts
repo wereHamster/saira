@@ -213,6 +213,8 @@ function scheduleEvictor<K, V>(
                 return [];
               }
             }
+
+            return [];
           });
 
           entries.sort((a, b) => b.runAt - a.runAt);
