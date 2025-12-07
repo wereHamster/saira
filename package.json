@@ -10,7 +10,7 @@
     "url": "https://github.com/wereHamster/saira"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.29.7",
+    "@changesets/cli": "^2.29.8",
     "@changesets/get-github-info": "^0.6.0",
     "@types/node": "^24.10.0",
     "typescript": "^5.9.3"
