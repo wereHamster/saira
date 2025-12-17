@@ -1,6 +1,8 @@
-# Saira
+# saira
 
-Saira is a library that aids implementing stale-while-revalidate style caches.
+[![npm version][npm-version-src]][npm-version-href]
+
+The saira library provides building blocks for implementing stale-while-revalidate style caches.
 
 ### Goals
 
@@ -105,3 +107,8 @@ setTimeout(async () => {
   console.log(value3);
 }, 86400 + 3600);
 ```
+
+<!-- Badges -->
+
+[npm-version-src]: https://img.shields.io/npm/v/saira?style=for-the-badge&colorA=131511&colorB=3673b1
+[npm-version-href]: https://npmjs.com/package/saira
