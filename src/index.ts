@@ -394,13 +394,59 @@ export function lookup<K, V>(h: Handle<K, V>, key: K): Promise<Lookup<K, V>> {
    *
    * Rejections from the loader are propagated to the caller. It is up to the
    * caller to decide how to handle them.
+   *
+   * This function implements the retry logic.
    */
   async function mkCacheEntryPromise(): Promise<Present<K, V>> {
-    const result = await h.options.loader(key);
-    const cacheEntry = mkPresent(key, result);
+    const policy = h.options.retryPolicy;
+
+    async function go(attempt: number): Promise<Present<K, V>> {
+      try {
+        const result = await h.options.loader(key);
+        return mkPresent(key, result);
+      } catch (error) {
+        /*
+         * If no policy is defined, we do not retry.
+         */
+        if (!policy) {
+          throw error;
+        }
+
+        /*
+         * If we have exhausted all attempts, propagate the error.
+         */
+        if (attempt >= policy.maxAttempts) {
+          throw error;
+        }
+
+        /*
+         * If the error does not satisfy the retry predicate, propagate it.
+         */
+        if (!policy.shouldRetry(error, attempt)) {
+          throw error;
+        }
+
+        /*
+         * Sleep for a bit before retrying.
+         */
+        await new Promise((resolve) => {
+          const base = Math.min(policy.initialBackoff * policy.backoffMultiplier ** (attempt - 1), policy.maxBackoff);
+
+          /*
+           * Add ±20% jitter to the base delay.
+           */
+          const delay = base * (Math.random() * 0.4 + 0.8);
+
+          setTimeout(resolve, delay);
+        });
+
+        return go(attempt + 1);
+      }
+    }
+
+    const cacheEntry = await go(1);
 
     h.cache.set(storeKey, cacheEntry);
-
     scheduleEvictor(h, storeKey, cacheEntry);
 
     return cacheEntry;
