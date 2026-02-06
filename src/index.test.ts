@@ -158,4 +158,85 @@ describe("lookup", () => {
   it.skip("should work correctly with multiple different keys", () => {
     // TODO
   });
+
+  it("should propagate loader error when no retry policy is set", async () => {
+    const handle = newHandle<string, unknown>({
+      storeKey: (x) => x,
+      loader: async () => {
+        throw new Error("Loader failed");
+      },
+    });
+
+    await assert.rejects(lookup(handle, "key"), "Error/Loader failed");
+  });
+
+  it("should retry on loader error during initial lookup according to retry policy", async () => {
+    let attempt = 1;
+    const handle = newHandle<string, unknown>({
+      storeKey: (x) => x,
+      loader: async () => {
+        if (attempt < 3) {
+          throw new Error(`Loader failed on attempt ${attempt++}`);
+        }
+
+        return {
+          value: {},
+        };
+      },
+      retryPolicy: {
+        maxAttempts: 5,
+        initialBackoff: 100,
+        maxBackoff: 1000,
+        backoffMultiplier: 1,
+        shouldRetry: () => true,
+      },
+    });
+
+    const result = await lookup(handle, "key");
+    assert.strictEqual(result.cacheEntry.kind, "Present");
+    assert.strictEqual(attempt, 3);
+  });
+
+  it("should retry on loader error during revalidation according to retry policy", async () => {
+    let attempt = 1;
+    const handle = newHandle<string, unknown>({
+      storeKey: (x) => x,
+      loader: async () => {
+        if (attempt === 1) {
+          return {
+            value: `Loader attempt ${attempt++}`,
+            cacheControl: {
+              maxAge: 0,
+              staleWhileRevalidate: 5,
+            },
+          };
+        }
+
+        if (attempt < 4) {
+          throw new Error(`Loader failed on attempt ${attempt++}`);
+        }
+
+        return {
+          value: "success",
+        };
+      },
+      retryPolicy: {
+        maxAttempts: 5,
+        initialBackoff: 100,
+        maxBackoff: 1000,
+        backoffMultiplier: 1,
+        shouldRetry: () => true,
+      },
+    });
+
+    await lookup(handle, "key");
+    await setTimeout(2000);
+
+    await lookup(handle, "key");
+    await setTimeout(1000);
+
+    const result = await lookup(handle, "key");
+    assert.strictEqual(result.cacheEntry.result.value, "success");
+    assert.strictEqual(attempt, 4);
+  });
 });
