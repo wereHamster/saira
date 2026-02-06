@@ -1,4 +1,4 @@
-import { type Result, newHandle, lookup } from "./index.js";
+import { lookup, newHandle, type Result } from "./index.js";
 
 type Key = URL;
 type Value = unknown;
