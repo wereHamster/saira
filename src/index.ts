@@ -44,9 +44,7 @@ export interface Handle<K, V> {
    * be evicted). When it fires, it schedules the next timer or sets this
    * field to 'undefined' (if the cache becomes empty).
    */
-  evictor:
-    | undefined
-    | { runAt: Timestamp; timeoutId: ReturnType<typeof setTimeout> };
+  evictor: undefined | { runAt: Timestamp; timeoutId: ReturnType<typeof setTimeout> };
 }
 
 /**
@@ -72,10 +70,7 @@ interface Loading<K, V> {
   readonly promise: Promise<Present<K, V>>;
 }
 
-function mkLoading<K, V>(
-  key: K,
-  promise: Promise<Present<K, V>>,
-): Loading<K, V> {
+function mkLoading<K, V>(key: K, promise: Promise<Present<K, V>>): Loading<K, V> {
   return {
     kind: "Loading",
 
@@ -123,10 +118,7 @@ interface Revalidating<K, V> {
   readonly promise: Promise<Present<K, V>>;
 }
 
-function mkRevalidating<K, V>(
-  cacheEntry: Present<K, V>,
-  promise: Promise<Present<K, V>>,
-): Revalidating<K, V> {
+function mkRevalidating<K, V>(cacheEntry: Present<K, V>, promise: Promise<Present<K, V>>): Revalidating<K, V> {
   return {
     kind: "Revalidating",
 
@@ -164,13 +156,8 @@ export function newHandle<K, V>(options: Options<K, V>): Handle<K, V> {
   };
 }
 
-function scheduleEvictor<K, V>(
-  h: Handle<K, V>,
-  keyValue: unknown,
-  cacheEntry: Present<K, V>,
-): void {
-  const { maxAge = 0, staleWhileRevalidate = 0 } =
-    cacheEntry.result.cacheControl ?? {};
+function scheduleEvictor<K, V>(h: Handle<K, V>, keyValue: unknown, cacheEntry: Present<K, V>): void {
+  const { maxAge = 0, staleWhileRevalidate = 0 } = cacheEntry.result.cacheControl ?? {};
   const runAt = cacheEntry.createdAt + maxAge + staleWhileRevalidate;
   if (!h.evictor || h.evictor.runAt > runAt) {
     if (h.evictor) {
@@ -198,8 +185,7 @@ function scheduleEvictor<K, V>(
                 return [];
               }
               case "Present": {
-                const { maxAge = 0, staleWhileRevalidate = 0 } =
-                  v.result.cacheControl ?? {};
+                const { maxAge = 0, staleWhileRevalidate = 0 } = v.result.cacheControl ?? {};
 
                 return [
                   {
@@ -232,12 +218,9 @@ function scheduleEvictor<K, V>(
 
 type State = "Fresh" | "Stale" | "Expired";
 
-function cacheEntryState<K, V>(
-  cacheEntry: Present<K, V> | Revalidating<K, V>,
-): State {
+function cacheEntryState<K, V>(cacheEntry: Present<K, V> | Revalidating<K, V>): State {
   const now = currentTimestamp();
-  const { maxAge = 0, staleWhileRevalidate = 0 } =
-    cacheEntry.result.cacheControl ?? {};
+  const { maxAge = 0, staleWhileRevalidate = 0 } = cacheEntry.result.cacheControl ?? {};
 
   switch (true) {
     case now <= cacheEntry.createdAt + maxAge:

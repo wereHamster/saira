@@ -1,8 +1,7 @@
-import { describe, it } from "node:test";
 import assert from "node:assert";
-
-import { newHandle, lookup } from "./index.js";
+import { describe, it } from "node:test";
 import { setTimeout } from "node:timers/promises";
+import { lookup, newHandle } from "./index.js";
 
 describe("lookup", () => {
   it("should return a cache entry in fresh state on initial lookup", async () => {
@@ -70,10 +69,7 @@ describe("lookup", () => {
       },
     });
 
-    const [a, b] = await Promise.all([
-      lookup(handle, "key"),
-      lookup(handle, "key"),
-    ]);
+    const [a, b] = await Promise.all([lookup(handle, "key"), lookup(handle, "key")]);
     assert.strictEqual(a.cacheEntry.result.value, 0);
     assert.strictEqual(b.cacheEntry.result.value, 0);
   });
