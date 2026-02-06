@@ -338,16 +338,26 @@ export function lookup<K, V>(h: Handle<K, V>, key: K): Promise<Lookup<K, V>> {
 
   return Promise.reject(new Error("Unreachable"));
 
+  /**
+   * This async function invokes the loader, and when it returns the result,
+   * updates the cache and schedules the evictor.
+   *
+   * Rejections from the loader are propagated to the caller. It is up to the
+   * caller to decide how to handle them.
+   */
+  async function mkCacheEntryPromise(): Promise<Present<K, V>> {
+    const result = await h.options.loader(key);
+    const cacheEntry = mkPresent(key, result);
+
+    h.cache.set(storeKey, cacheEntry);
+
+    scheduleEvictor(h, storeKey, cacheEntry);
+
+    return cacheEntry;
+  }
+
   function startLoading(): Promise<Lookup<K, V>> {
-    const cacheEntryPromise = h.options.loader(key).then((result) => {
-      const cacheEntry = mkPresent(key, result);
-
-      h.cache.set(storeKey, cacheEntry);
-
-      scheduleEvictor(h, storeKey, cacheEntry);
-
-      return cacheEntry;
-    });
+    const cacheEntryPromise = mkCacheEntryPromise();
 
     cacheEntryPromise.catch(() => {
       h.cache.delete(storeKey);
@@ -362,15 +372,7 @@ export function lookup<K, V>(h: Handle<K, V>, key: K): Promise<Lookup<K, V>> {
   }
 
   function startRevalidating(cacheEntry: Present<K, V>): void {
-    const cacheEntryPromise = h.options.loader(key).then((result) => {
-      const cacheEntry = mkPresent(key, result);
-
-      h.cache.set(storeKey, cacheEntry);
-
-      scheduleEvictor(h, storeKey, cacheEntry);
-
-      return cacheEntry;
-    });
+    const cacheEntryPromise = mkCacheEntryPromise();
 
     cacheEntryPromise.catch(() => {
       const state = cacheEntryState(cacheEntry);
