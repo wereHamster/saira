@@ -4,7 +4,10 @@
   "version": "0.0.5",
   "license": "MIT",
   "exports": {
-    ".": "./index.js"
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js"
+    }
   },
   "repository": {
     "url": "https://github.com/wereHamster/saira"
