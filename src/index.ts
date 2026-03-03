@@ -37,42 +37,44 @@ export interface Options<K, V> {
    * The library applies ±20% jitter to the backoff delay to avoid thundering
    * herd problems.
    */
-  readonly retryPolicy?: {
-    /**
-     * The maximum number of total attempts (including the initial call).
-     *
-     * The value MUST be greater than or equal to 1. A value of 1 means that
-     * the loader will be called once, and no retries will be attempted. This
-     * is effectively the same as not providing a retry policy at all.
-     */
-    readonly maxAttempts: number;
+  readonly retryPolicy?: RetryPolicy;
+}
 
-    /**
-     * The delay (in milliseconds) before the first retry attempt.
-     */
-    readonly initialBackoff: number;
+export interface RetryPolicy {
+  /**
+   * The maximum number of total attempts (including the initial call).
+   *
+   * The value MUST be greater than or equal to 1. A value of 1 means that
+   * the loader will be called once, and no retries will be attempted. This
+   * is effectively the same as not providing a retry policy at all.
+   */
+  readonly maxAttempts: number;
 
-    /**
-     * The maximum delay (in milliseconds) between attempts. This acts as
-     * a ceiling for the exponential backoff.
-     */
-    readonly maxBackoff: number;
+  /**
+   * The delay (in milliseconds) before the first retry attempt.
+   */
+  readonly initialBackoff: number;
 
-    /**
-     * The factor by which the backoff increases after each failed attempt.
-     */
-    readonly backoffMultiplier: number;
+  /**
+   * The maximum delay (in milliseconds) between attempts. This acts as
+   * a ceiling for the exponential backoff.
+   */
+  readonly maxBackoff: number;
 
-    /**
-     * A predicate function that determines if an error should trigger a retry.
-     *
-     * The function receives the error thrown by the loader and the current
-     * attempt number (starting from 1 for the initial call). It should return
-     * `true` if the error is transient and the loader should be retried, or
-     * `false` if the error is permanent and should be propagated immediately.
-     */
-    readonly shouldRetry: (error: unknown, attempt: number) => boolean;
-  };
+  /**
+   * The factor by which the backoff increases after each failed attempt.
+   */
+  readonly backoffMultiplier: number;
+
+  /**
+   * A predicate function that determines if an error should trigger a retry.
+   *
+   * The function receives the error thrown by the loader and the current
+   * attempt number (starting from 1 for the initial call). It should return
+   * `true` if the error is transient and the loader should be retried, or
+   * `false` if the error is permanent and should be propagated immediately.
+   */
+  readonly shouldRetry: (error: unknown, attempt: number) => boolean;
 }
 
 export interface Handle<K, V> {
