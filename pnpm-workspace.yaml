@@ -2,4 +2,4 @@ packages:
   - '.'
 
 trustPolicy: no-downgrade
-minimumReleaseAge: 12960
+minimumReleaseAge: 21600
