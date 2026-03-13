@@ -1,5 +1,11 @@
 # saira
 
+## 0.0.6
+
+### Patch Changes
+
+- **Add explicit types and import conditions to exports** ([#116](https://github.com/wereHamster/saira/pull/116)) - This improves TypeScript IntelliSense and module resolution for modern build tools.
+
 ## 0.0.5
 
 ### Patch Changes
