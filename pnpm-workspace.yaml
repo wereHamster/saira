@@ -3,3 +3,5 @@ packages:
 
 trustPolicy: no-downgrade
 minimumReleaseAge: 21600
+minimumReleaseAgeExclude:
+  - 'shell-quote@1.11.0'
