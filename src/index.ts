@@ -15,7 +15,7 @@ export interface Options<K, V> {
   readonly storeKey: (key: K) => unknown;
 
   /**
-   * A function which loads the value or the given key.
+   * A function which loads the value for the given key.
    *
    * The function must return what is essentially a tuple of the raw value,
    * and cache control settings (for how long the value can be cached).
@@ -90,7 +90,7 @@ export interface Handle<K, V> {
    * A timer which fires when the next cache entry needs to be evicted.
    *
    * We store the 'runAt' time to be able to quickly determine if we need
-   * to re-schedule it or not (when a cache entry is addded or updated).
+   * to re-schedule it or not (when a cache entry is added or updated).
    *
    * We only keep a single timer (for when the next cache entry needs to
    * be evicted). When it fires, it schedules the next timer or sets this
@@ -136,7 +136,7 @@ function mkLoading<K, V>(key: K, promise: Promise<Present<K, V>>): Loading<K, V>
  * fresh or stale. To know that state, you need to consult the createdAt timestamp,
  * as well as the cache control settings (maxAge, staleWhileRevalidate).
  */
-interface Present<K, V> {
+export interface Present<K, V> {
   readonly kind: "Present";
 
   readonly key: K;
@@ -157,7 +157,7 @@ function mkPresent<K, V>(key: K, result: Result<V>): Present<K, V> {
 /**
  * The value is in the cache, but is being revalidated.
  */
-interface Revalidating<K, V> {
+export interface Revalidating<K, V> {
   readonly kind: "Revalidating";
 
   readonly key: K;
@@ -201,7 +201,7 @@ export interface Result<V> {
  * Timestamps are whole numbers, seconds since an arbitrary epoch. We do not
  * need sub-second precision.
  */
-type Timestamp = number;
+export type Timestamp = number;
 
 function currentTimestamp(): Timestamp {
   return Math.floor(Date.now() / 1000);
@@ -283,9 +283,9 @@ function evict<K, V>(h: Handle<K, V>): void {
   }
 }
 
-type State = "Fresh" | "Stale" | "Expired";
+export type CacheEntryState = "Fresh" | "Stale" | "Expired";
 
-function cacheEntryState<K, V>(cacheEntry: Present<K, V> | Revalidating<K, V>): State {
+function cacheEntryState<K, V>(cacheEntry: Present<K, V> | Revalidating<K, V>): CacheEntryState {
   const now = currentTimestamp();
   const { maxAge = 0, staleWhileRevalidate = 0 } = cacheEntry.result.cacheControl ?? {};
 
@@ -305,7 +305,7 @@ export interface Lookup<K, V> {
   /**
    * The state of the cache entry at time of lookup.
    */
-  readonly state: State;
+  readonly state: CacheEntryState;
 }
 
 export function lookup<K, V>(h: Handle<K, V>, key: K): Promise<Lookup<K, V>> {
@@ -329,7 +329,7 @@ export function lookup<K, V>(h: Handle<K, V>, key: K): Promise<Lookup<K, V>> {
    *   (Revalidating, Expired) -> Change kind to Loading; Return the value from the loading promise;
    *   (_,            Expired) -> Trigger loading; Return the value from the loading promise.
    *
-   * The last case should only happend under race conditions. The evictor
+   * The last case should only happened under race conditions. The evictor
    * should be removing expired entries from the cache. But because the
    * evictor is using setTimeout(), it's possible that a cache entry is
    * technically expired but still present in the cache.
