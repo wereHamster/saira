@@ -86,6 +86,8 @@ jobs:
 
       - run: cat package.json | jq 'del(.devDependencies)' > dist/package.json
 
+      - run: cp README.md LICENSE dist/
+
       - run: rm dist/*.test.* dist/example.*
 
       # ---------------------------------------------------------------------
