@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - package.json
+
+permissions:
+  contents: read
+
+concurrency: ${{ github.workflow }}-${{ github.sha }}
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: write
+
+    outputs:
+      publishable: ${{ steps.release.outputs.publishable }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - id: release
+        run: |
+          version=$(jq -r .version package.json)
+          previous=$(git show "$BEFORE:package.json" 2>/dev/null | jq -r .version || true)
+
+          if [ "$version" = "$previous" ]; then
+            echo "Version is still $version, nothing to release"
+            exit 0
+          fi
+
+          echo "publishable=true" >> "$GITHUB_OUTPUT"
+
+          if gh release view "v$version" > /dev/null 2>&1; then
+            echo "Release v$version already exists"
+            exit 0
+          fi
+
+          notes="$RUNNER_TEMP/notes.md"
+          awk -v a="## $version" -v b="## v$version" '$0 == a || $0 == b { found = 1; next } /^## / { found = 0 } found' CHANGELOG.md > "$notes"
+          if [ ! -s "$notes" ]; then
+            echo "No release notes for $version in CHANGELOG.md" >&2
+            exit 1
+          fi
+
+          gh release create "v$version" --target "$GITHUB_SHA" --title "v$version" --notes-file "$notes"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+
+  publish:
+    name: Publish
+    needs: release
+    if: needs.release.outputs.publishable == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # ---------------------------------------------------------------------
+      # Setup
+
+      - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+      - run: nix run .#nix-develop .#workflow
+      - run: pnpm install
+
+      # ---------------------------------------------------------------------
+      # Build
+
+      - run: ./node_modules/.bin/tsc
+
+      - run: cat package.json | jq 'del(.devDependencies)' > dist/package.json
+
+      - run: rm dist/*.test.* dist/example.*
+
+      # ---------------------------------------------------------------------
+      # Publish
+
+      - run: pnpm stage publish --registry https://registry.npmjs.org --access public --no-git-checks
+        working-directory: dist/
