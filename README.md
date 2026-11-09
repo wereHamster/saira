@@ -8,7 +8,7 @@ The saira library provides building blocks for implementing stale-while-revalida
 
 The library is written with the following goals in mind:
 
-- **Portable** - It only requires standard ES6 language and runtime features.
+- **Portable** - It only requires ES2020 language features.
 - **Agnostic to the cache key type, value type, and data loading function** - As far as the library is concerned, cache keys can be of arbitrary type, and the data loader is an async function. No further constraints are placed on your code.
 - **Strictly and strongly typed** - It is written in TypeScript, and all the public interfaces have strong types and JSDoc comments.
 
@@ -35,7 +35,7 @@ Further API for your convenience:
 ## Usage
 
 - **Step 1:** Decide what your cache key and values will be. Cache keys can be arbitrary JavaScript values, but you must be able to provide a function that converts the key to a store key, as well as an async function that loads the value associated with the cache key.
-- **Step 2:** Create a `Handle`. This is an object which holds the cache and associated medatada. You only need to do this once (eg. during startup or initialization).
+- **Step 2:** Create a `Handle`. This is an object which holds the cache and associated metadata. You only need to do this once (eg. during startup or initialization).
 - **Step 3:** Whenever you want to look up a value in the cache, use the `lookup` function. It automatically loads the value if it's not present in the cache, and will revalidate it based on your cache control settings.
 
 ```typescript
@@ -105,7 +105,7 @@ setTimeout(async () => {
    */
   const value3 = await lookup(handle, key);
   console.log(value3);
-}, 86400 + 3600);
+}, (86400 + 3600) * 1000);
 ```
 
 <!-- Badges -->
