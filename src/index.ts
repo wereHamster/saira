@@ -231,7 +231,7 @@ function scheduleEvictor<K, V>(h: Handle<K, V>, runAt: Timestamp): void {
 
   h.evictor = {
     runAt,
-    timeoutId: setTimeout(() => evict(h), (runAt - currentTimestamp()) * 1000),
+    timeoutId: setTimeout(() => evict(h), Math.min((runAt - currentTimestamp()) * 1000, 2 ** 31 - 1)),
   };
 }
 
