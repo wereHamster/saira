@@ -208,63 +208,62 @@ export function newHandle<K, V>(options: Options<K, V>): Handle<K, V> {
   };
 }
 
-function scheduleEvictor<K, V>(h: Handle<K, V>, keyValue: unknown, cacheEntry: Present<K, V>): void {
+/**
+ * The time at which the cache entry expires (is past its max-age and
+ * stale-while-revalidate) and should be evicted from the cache.
+ */
+function expiresAt<K, V>(cacheEntry: Present<K, V> | Revalidating<K, V>): Timestamp {
   const { maxAge = 0, staleWhileRevalidate = 0 } = cacheEntry.result.cacheControl ?? {};
-  const runAt = cacheEntry.createdAt + maxAge + staleWhileRevalidate;
-  if (!h.evictor || h.evictor.runAt > runAt) {
-    if (h.evictor) {
-      clearTimeout(h.evictor.timeoutId);
+  return cacheEntry.createdAt + maxAge + staleWhileRevalidate;
+}
+
+/**
+ * Ensure the evictor runs no later than at the given time.
+ */
+function scheduleEvictor<K, V>(h: Handle<K, V>, runAt: Timestamp): void {
+  if (h.evictor && h.evictor.runAt <= runAt) {
+    return;
+  }
+
+  if (h.evictor) {
+    clearTimeout(h.evictor.timeoutId);
+  }
+
+  h.evictor = {
+    runAt,
+    timeoutId: setTimeout(() => evict(h), (runAt - currentTimestamp()) * 1000),
+  };
+}
+
+/**
+ * Remove all expired entries from the cache, and schedule the evictor
+ * for when the next entry expires.
+ */
+function evict<K, V>(h: Handle<K, V>): void {
+  h.evictor = undefined;
+
+  const now = currentTimestamp();
+  let next: Timestamp | undefined;
+
+  for (const [storeKey, cacheEntry] of h.cache) {
+    /*
+     * Do not delete the cache entry if it's Loading or Revalidating! The
+     * evictor is rescheduled when their promise settles.
+     */
+    if (cacheEntry.kind !== "Present") {
+      continue;
     }
 
-    h.evictor = {
-      runAt,
-      timeoutId: setTimeout(
-        () => {
-          h.evictor = undefined;
+    const runAt = expiresAt(cacheEntry);
+    if (runAt <= now) {
+      h.cache.delete(storeKey);
+    } else if (next === undefined || runAt < next) {
+      next = runAt;
+    }
+  }
 
-          const cacheEntry = h.cache.get(keyValue);
-
-          /*
-           * Do not delete the cache entry if it's Loading or Revalidating!
-           */
-          if (cacheEntry && cacheEntry.kind === "Present") {
-            h.cache.delete(keyValue);
-          }
-
-          const entries = [...h.cache.entries()].flatMap(([k, v]) => {
-            switch (v.kind) {
-              case "Loading": {
-                return [];
-              }
-              case "Present": {
-                const { maxAge = 0, staleWhileRevalidate = 0 } = v.result.cacheControl ?? {};
-
-                return [
-                  {
-                    keyValue: k,
-                    cacheEntry: v,
-                    runAt: v.createdAt + maxAge + staleWhileRevalidate,
-                  },
-                ];
-              }
-              case "Revalidating": {
-                return [];
-              }
-            }
-
-            return [];
-          });
-
-          entries.sort((a, b) => b.runAt - a.runAt);
-
-          const [head] = entries;
-          if (head) {
-            scheduleEvictor(h, head.keyValue, head.cacheEntry);
-          }
-        },
-        (runAt - currentTimestamp()) * 1000,
-      ),
-    };
+  if (next !== undefined) {
+    scheduleEvictor(h, next);
   }
 }
 
@@ -449,7 +448,7 @@ export function lookup<K, V>(h: Handle<K, V>, key: K): Promise<Lookup<K, V>> {
     const cacheEntry = await go(1);
 
     h.cache.set(storeKey, cacheEntry);
-    scheduleEvictor(h, storeKey, cacheEntry);
+    scheduleEvictor(h, expiresAt(cacheEntry));
 
     return cacheEntry;
   }
@@ -486,7 +485,7 @@ export function lookup<K, V>(h: Handle<K, V>, key: K): Promise<Lookup<K, V>> {
         h.cache.set(storeKey, cacheEntry);
       }
 
-      scheduleEvictor(h, storeKey, cacheEntry);
+      scheduleEvictor(h, expiresAt(cacheEntry));
     });
 
     h.cache.set(storeKey, mkRevalidating(cacheEntry, cacheEntryPromise));

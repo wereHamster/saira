@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
 import { setTimeout } from "node:timers/promises";
-import { lookup, newHandle } from "./index.js";
+import { lookup, lookupValue, newHandle } from "./index.js";
 
 describe("lookup", () => {
   it("should return a cache entry in fresh state on initial lookup", async () => {
@@ -137,6 +137,31 @@ describe("lookup", () => {
     assert.strictEqual(handle.cache.size, 3);
     await setTimeout(4000);
     assert.strictEqual(handle.cache.size, 0);
+  });
+
+  it("should not evict an entry that was revalidated before the evictor fired", async () => {
+    let calls = 0;
+    const handle = newHandle<string, unknown>({
+      storeKey: (x) => x,
+      loader: async () => {
+        calls++;
+        return calls === 1
+          ? { value: calls, cacheControl: { maxAge: 0, staleWhileRevalidate: 2 } }
+          : { value: calls, cacheControl: { maxAge: 60 } };
+      },
+    });
+
+    await lookup(handle, "key"); // loads; evictor scheduled for t=2s
+
+    await setTimeout(1100);
+    const { state } = await lookup(handle, "key"); // stale; revalidation stores a fresh entry
+    assert.strictEqual(state, "Stale");
+
+    await setTimeout(1400); // evictor for the original entry fires at t=2s
+
+    const value = await lookupValue(handle, "key"); // revalidated entry is still fresh
+    assert.strictEqual(value, 2);
+    assert.strictEqual(calls, 2);
   });
 
   it.skip("should trigger a new load if looking up an expired entry before eviction", () => {
