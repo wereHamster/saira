@@ -229,10 +229,19 @@ function scheduleEvictor<K, V>(h: Handle<K, V>, runAt: Timestamp): void {
     clearTimeout(h.evictor.timeoutId);
   }
 
-  h.evictor = {
-    runAt,
-    timeoutId: setTimeout(() => evict(h), Math.min((runAt - currentTimestamp()) * 1000, 2 ** 31 - 1)),
-  };
+  const timeoutId = setTimeout(() => evict(h), Math.min((runAt - currentTimestamp()) * 1000, 2 ** 31 - 1));
+
+  /*
+   * Do not let the evictor keep the process alive.
+   *
+   * This is not a standard language feature: unref() only exists in Node.js
+   * and runtimes that implement its timer API (eg. Bun). In other runtimes
+   * (eg. browsers) setTimeout() returns a number, and the optional call does
+   * nothing.
+   */
+  timeoutId.unref?.();
+
+  h.evictor = { runAt, timeoutId };
 }
 
 /**
