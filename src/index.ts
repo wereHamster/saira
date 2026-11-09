@@ -184,6 +184,13 @@ function mkRevalidating<K, V>(cacheEntry: Present<K, V>, promise: Promise<Presen
 export interface Result<V> {
   readonly value: V;
 
+  /**
+   * How long the value may be cached, in seconds.
+   *
+   * Both fields default to 0. Without them the value is effectively not
+   * cached: it is shared with concurrent lookups for the same key, and may
+   * be kept for a very short time at most.
+   */
   readonly cacheControl?: {
     readonly maxAge?: number;
     readonly staleWhileRevalidate?: number;
