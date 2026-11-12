@@ -97,15 +97,18 @@ setTimeout(async () => {
 }, 1000);
 
 /* After 1 day and 1 hour */
-setTimeout(async () => {
-  /*
-   * The value is still in the cache, but stale. The lookup returns the (stale)
-   * value but triggers revalidation in the background. So this lookup also
-   * returns immediately.
-   */
-  const value3 = await lookup(handle, key);
-  console.log(value3);
-}, (86400 + 3600) * 1000);
+setTimeout(
+  async () => {
+    /*
+     * The value is still in the cache, but stale. The lookup returns the (stale)
+     * value but triggers revalidation in the background. So this lookup also
+     * returns immediately.
+     */
+    const value3 = await lookup(handle, key);
+    console.log(value3);
+  },
+  (86400 + 3600) * 1000,
+);
 ```
 
 <!-- Badges -->
